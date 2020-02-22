@@ -3,10 +3,10 @@ using Random
 using Distributions
 using LinearAlgebra
 
-const particle_num  = 2
+const particle_num  = 10
 const time_step = 0.01
-const total_step = 300
-const dump_step = 1
+const total_step = 10000
+const dump_step = 10
 const lennard_jones_eps = 0.6
 const lennard_jones_sigma = 4.0
 const initial_position_range = (-10.0 ,10.0)
