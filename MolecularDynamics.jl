@@ -3,12 +3,12 @@ using Random
 using Distributions
 using LinearAlgebra
 
-const particle_num  = 10
+const particle_num  = 5
 const time_step = 0.01
 const total_step = 10000
 const dump_step = 10
 const lennard_jones_eps = 0.6
-const lennard_jones_sigma = 4.0
+const lennard_jones_sigma = 2.0
 const initial_position_range = (-10.0 ,10.0)
 const initial_velocity_range = (-10.0 ,10.0)
 const mass_range             = (100.0   ,101.0)
@@ -93,6 +93,16 @@ function calculate_force(coord_vec::Array{Float64, 2})::Array{Float64, 2}
     res_force_vec
 end
 
+function velocity_verlet_integration(coord_vec::Array{Float64, 2}, vel_vec::Array{Float64, 2},
+                                     force_vec::Array{Float64, 2}, inv_mass_vec::Array{Float64, 2})::Tuple{Array{Float64, 2}, Array{Float64, 2}, Array{Float64, 2}}
+    new_coord_vec =
+        coord_vec + time_step * vel_vec + time_step * time_step * force_vec .* inv_mass_vec * 0.5
+    new_force_vec = calculate_force(new_coord_vec)
+    new_vel_vec = vel_vec + time_step * (force_vec + new_force_vec) .* inv_mass_vec * 0.5
+
+    (new_coord_vec, new_vel_vec, new_force_vec)
+end
+
 function main()
     println("main start")
     # system initilization
@@ -110,11 +120,7 @@ function main()
     force_vec        = calculate_force(coord_vec)
     # loop start
     for step_idx in 1:total_step
-        coord_vec = coord_vec + time_step * velocity_vec + time_step * time_step * force_vec .* inv_mass_vec * 0.5
-        new_force_vec = calculate_force(coord_vec)
-        velocity_vec = velocity_vec + time_step * (force_vec + new_force_vec) .* inv_mass_vec * 0.5
-
-        force_vec = new_force_vec
+        coord_vec, velocity_vec, force_vec = velocity_verlet_integration(coord_vec, velocity_vec, force_vec, inv_mass_vec)
 
         # for dump
         if mod(step_idx, dump_step) == 0
