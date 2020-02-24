@@ -20,6 +20,10 @@ function dev_excluded_volume(eps::Float64, sig::Float64, r::Float64)::Float64
     -12.0 * eps * rinv * (sig * rinv)^12
 end
 
+function harmonic(k::Float64, v0::Float64, v::Float64)::Float64
+    k * (v - v0)^2
+end
+
 function dev_harmonic(k::Float64, v0::Float64, v::Float64)::Float64
     2k * (v - v0)
 end
@@ -36,13 +40,20 @@ function calculate_energy(coord_vec::Array{Float64, 2}, velocity_vec::Array{Floa
         end
     end
 
-    println(log_file, "lennard jones energy ", total_energy)
+    # println(log_file, "lennard jones energy ", total_energy)
+
+    # harmonic bond part
+    for patch_particle_idx in 1:patch_particle_num
+        dist_vec = coord_vec[:, patch_particle_idx * 2 - 1] - coord_vec[:, patch_particle_idx * 2]
+        distance = norm(dist_vec)
+        total_energy += harmonic(core_patch_bond_coef, core_patch_dist, distance)
+    end
 
     # box potential part
     box_side_coord = box_side_length * 0.5
     total_energy +=
         sum(coord -> excluded_volume(box_eps, box_sigma, box_side_coord - abs(coord)), coord_vec)
-    println(log_file, "total energy ", total_energy)
+    # println(log_file, "total energy ", total_energy)
 
     # physical energy
     total_energy += sum(0.5 * velocity_vec .* velocity_vec .* mass_vec)
@@ -64,6 +75,18 @@ function calculate_force(coord_vec::Array{Float64, 2})::Array{Float64, 2}
     end
 
     #println(log_file, "lennard jones force ", res_force_vec)
+
+    # harmonic bond part
+    for patch_particle_idx in 1:patch_particle_num
+        core_idx = patch_particle_idx * 2 - 1
+        patch_idx = core_idx + 1
+        dist_vec = coord_vec[:, patch_idx] - coord_vec[:, core_idx]
+        distance = norm(dist_vec)
+        harmonic_bond_force_vec =
+            dev_harmonic(core_patch_bond_coef, core_patch_dist, distance) * dist_vec / distance
+        res_force_vec[:, core_idx]  += harmonic_bond_force_vec
+        res_force_vec[:, patch_idx] -= harmonic_bond_force_vec
+    end
 
     # box potential part
     box_side_coord = box_side_length * 0.5

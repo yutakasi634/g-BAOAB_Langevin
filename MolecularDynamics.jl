@@ -4,15 +4,14 @@ using Distributions
 using LinearAlgebra
 
 # simulation meta information
-const time_step = 0.1
-const total_step = 50000
-const dump_step = 100
+const time_step = 0.8
+const total_step = 10000
+const dump_step = 3
 
 # physical constants
 const kB = 0.0019872 # kcal/ mol K
 
 # system paraneters
-const particle_num  = 50
 const lennard_jones_eps = 0.6
 const lennard_jones_sigma = 2.0
 const mass_range             = (80.0   ,120.0)
@@ -20,8 +19,15 @@ const gamma = 0.01
 const temperature = 300.0
 
 # random initial setting parameters
-const initial_position_range = (-15.0, 15.0)
-const initial_velocity_range = (-0.1, 0.1)
+# const particle_num  = 50
+# const initial_position_range = (-15.0, 15.0)
+# const initial_velocity_range = (-0.1, 0.1)
+
+# meso-scale system parameters
+const patch_particle_num = 10
+const particle_num = patch_particle_num * 2
+const core_patch_dist = 4.0
+const core_patch_bond_coef = 110.0
 
 # box parameters
 const box_side_length        = 40.0
@@ -49,10 +55,28 @@ include("integrations.jl")
 function main()
     println("main start")
     # random system initilization
-    coord_vec    = rand(Uniform(initial_position_range...), 3, particle_num)
-    velocity_vec = zeros(3, particle_num)
+    # coord_vec    = rand(Uniform(initial_position_range...), 3, particle_num)
+
+    # meso-scale system initialization
+    coord_vec = zeros(3, particle_num)
+    side_num = ceil(patch_particle_num^(1/3))
+    space = box_side_length / (side_num + 1)
+    box_side_half = box_side_length / 2
+    box_edge_coord = [-box_side_half, -box_side_half, -box_side_half]
+
+    patch_particle_count = 0
+    for x_idx in 1:side_num, y_idx in 1:side_num, z_idx in 1:side_num
+        core_coord = box_edge_coord + [x_idx * space, y_idx * space, z_idx * space]
+        coord_vec[:, patch_particle_count * 2 + 1] = core_coord
+        coord_vec[:, patch_particle_count * 2 + 2] = core_coord + [core_patch_dist, 0, 0]
+        patch_particle_count += 1
+        if patch_particle_count == patch_particle_num
+            break
+        end
+    end
 
     # pre preparation
+    velocity_vec = zeros(3, particle_num)
     frame_vec_for_dump = []
     vel_vec_for_dump = []
     energy_vec_for_dump = []
