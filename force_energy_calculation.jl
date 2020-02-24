@@ -28,6 +28,15 @@ function dev_harmonic(k::Float64, v0::Float64, v::Float64)::Float64
     2k * (v - v0)
 end
 
+function inverse_power(eps::Float64, sig::Float64, r::Float64, n::Int64)::Float64
+    eps * (sig / r)^n
+end
+
+function dev_inverse_power(eps::Float64, sig::Float64, r::Float64, n::Int64)::Float64
+    inv_r = 1.0 / r
+    -n * eps * inv_r * (sig * inv_r)^n
+end
+
 function calculate_energy(coord_vec::Array{Float64, 2}, velocity_vec::Array{Float64, 2},
                           mass_vec::Array{Float64, 2})::Float64
     total_energy = 0
@@ -63,18 +72,20 @@ end
 
 function calculate_force(coord_vec::Array{Float64, 2})::Array{Float64, 2}
     res_force_vec = zeros(3, particle_num)
-    # lennard jones part
-    for i in 1:particle_num - 1
-        for j in i+1:particle_num
-            dist_vec = coord_vec[:,j] - coord_vec[:,i]
+    # inverse power part
+    for first_idx in 1:patch_particle_num - 1
+        for second_idx in first_idx + 1:patch_particle_num
+            dist_vec = coord_vec[:, second_idx] - coord_vec[:, first_idx]
             distance = norm(dist_vec)
-            lennard_force_vec = dev_lennard_jones(lennard_jones_eps, lennard_jones_sigma, distance) * dist_vec / distance
-            res_force_vec[:,i] += lennard_force_vec
-            res_force_vec[:,j] -= lennard_force_vec
+            inverse_power_force_vec =
+                dev_inverse_power(inverse_power_coef, core_patch_dist * 2,
+                                  distance, inverse_power_n) * dist_vec /distance
+            res_force_vec[:, first_idx] += inverse_power_force_vec
+            res_force_vec[:, second_idx] -= inverse_power_force_vec
         end
     end
 
-    #println(log_file, "lennard jones force ", res_force_vec)
+    #println(log_file, "inverse power force ", res_force_vec)
 
     # harmonic bond part
     for patch_particle_idx in 1:patch_particle_num
@@ -90,11 +101,11 @@ function calculate_force(coord_vec::Array{Float64, 2})::Array{Float64, 2}
 
     # box potential part
     box_side_coord = box_side_length * 0.5
-    box_force_vec = map(coord_vec) do coord
+    box_force_vec = map(coord_vec[:, 1:2:particle_num]) do coord
         dev_excluded_volume(box_eps, box_sigma, box_side_coord - abs(coord)) * sign(coord)
     end
     #println(log_file, "box force ", box_force_vec)
-    res_force_vec += box_force_vec
+    res_force_vec[:,1:2:particle_num] += box_force_vec
 
     #println(log_file, "total force ", res_force_vec)
     res_force_vec
