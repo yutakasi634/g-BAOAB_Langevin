@@ -3,18 +3,36 @@ using Random
 using Distributions
 using LinearAlgebra
 
-const particle_num  = 5
-const time_step = 0.01
-const total_step = 10000
+# simulation meta information
+const time_step = 0.1
+const total_step = 100000
 const dump_step = 10
+
+# system paraneters
+const particle_num  = 5
 const lennard_jones_eps = 0.6
 const lennard_jones_sigma = 2.0
-const initial_position_range = (-10.0 ,10.0)
-const initial_velocity_range = (-10.0 ,10.0)
-const mass_range             = (100.0   ,101.0)
+const initial_position_range = (-8.0 ,8.0)
+const initial_velocity_range = (-0.1 ,0.1)
+const mass_range             = (80.0   ,120.0)
+const gamma = 0.01
+const temperature = 300.0
+
+# box parameters
 const box_side_length        = 25.0
 const box_eps                = 0.6
 const box_sigma              = 4.0
+
+# random number generator paramters
+const rng = MersenneTwister(1234)
+
+# pre calculation
+const time_step2 = time_step * time_step
+const kB = 0.0019872 # kcal/ mol K
+const one_minus_gammah_over2 = 1 - gamma * time_step * 0.5
+const mass_vec     = rand(Uniform(mass_range...), 1, particle_num)
+const inv_mass_vec = 1 ./ mass_vec
+const noise_coef_vec = sqrt.(2gamma * kB * temperature / time_step .* inv_mass_vec)
 
 log_file = open("logfile.log", "w")
 
@@ -94,33 +112,47 @@ function calculate_force(coord_vec::Array{Float64, 2})::Array{Float64, 2}
 end
 
 function velocity_verlet_integration(coord_vec::Array{Float64, 2}, vel_vec::Array{Float64, 2},
-                                     force_vec::Array{Float64, 2}, inv_mass_vec::Array{Float64, 2})::Tuple{Array{Float64, 2}, Array{Float64, 2}, Array{Float64, 2}}
+                                     acceleration_vec::Array{Float64, 2}, inv_mass_vec::Array{Float64, 2})::Tuple{Array{Float64, 2}, Array{Float64, 2}, Array{Float64, 2}}
     new_coord_vec =
-        coord_vec + time_step * vel_vec + time_step * time_step * force_vec .* inv_mass_vec * 0.5
-    new_force_vec = calculate_force(new_coord_vec)
-    new_vel_vec = vel_vec + time_step * (force_vec + new_force_vec) .* inv_mass_vec * 0.5
+        coord_vec + time_step * vel_vec + time_step2 * 0.5 * acceleration_vec
+    new_acceleration_vec = calculate_force(new_coord_vec) .* inv_mass_vec
+    new_vel_vec = vel_vec + time_step * 0.5 * (acceleration_vec + new_acceleration_vec)
 
-    (new_coord_vec, new_vel_vec, new_force_vec)
+    (new_coord_vec, new_vel_vec, new_acceleration_vec)
+end
+
+function langevin_integration(coord_vec::Array{Float64, 2}, vel_vec::Array{Float64, 2},
+                              acceleration_vec::Array{Float64, 2}, inv_mass_vec::Array{Float64, 2})::Tuple{Array{Float64, 2}, Array{Float64, 2}, Array{Float64, 2}}
+    new_coord_vec =
+        coord_vec + vel_vec * time_step * one_minus_gammah_over2 +
+        time_step2 * 0.5 * acceleration_vec
+    new_acceleration_vec =
+        calculate_force(new_coord_vec) .* inv_mass_vec + noise_coef_vec .*
+        randn(rng, (3, particle_num))
+    new_vel_vec =
+        one_minus_gammah_over2 * (one_minus_gammah_over2 + (gamma * time_step * 0.5)^2) .* vel_vec +
+        0.5 * time_step * one_minus_gammah_over2 * (acceleration_vec + new_acceleration_vec)
+    (new_coord_vec, new_vel_vec, new_acceleration_vec)
 end
 
 function main()
     println("main start")
     # system initilization
     coord_vec    = rand(Uniform(initial_position_range...), 3, particle_num)
-    velocity_vec = rand(Uniform(initial_velocity_range...), 3, particle_num)
-    mass_vec     = rand(Uniform(mass_range...), 1, particle_num)
+    #velocity_vec = rand(Uniform(initial_velocity_range...), 3, particle_num)
+    velocity_vec = zeros(3, particle_num)
 
     # pre preparation
-    inv_mass_vec = 1 ./ mass_vec
     frame_vec_for_dump = []
     energy_vec_for_dump = []
     push!(frame_vec_for_dump, coord_vec)
 
     # system integration
-    force_vec        = calculate_force(coord_vec)
+    acceleration_vec = calculate_force(coord_vec) .* inv_mass_vec
     # loop start
     for step_idx in 1:total_step
-        coord_vec, velocity_vec, force_vec = velocity_verlet_integration(coord_vec, velocity_vec, force_vec, inv_mass_vec)
+        #coord_vec, velocity_vec, acceleration_vec = velocity_verlet_integration(coord_vec, velocity_vec, acceleration_vec, inv_mass_vec)
+        coord_vec, velocity_vec, acceleration_vec = langevin_integration(coord_vec, velocity_vec, acceleration_vec, inv_mass_vec)
 
         # for dump
         if mod(step_idx, dump_step) == 0
