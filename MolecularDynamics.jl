@@ -152,8 +152,10 @@ function main()
     acceleration_vec = calculate_force(coord_vec) .* inv_mass_vec
     # loop start
     for step_idx in 1:total_step
-        #coord_vec, velocity_vec, acceleration_vec = velocity_verlet_integration(coord_vec, velocity_vec, acceleration_vec, inv_mass_vec)
-        coord_vec, velocity_vec, acceleration_vec = langevin_integration(coord_vec, velocity_vec, acceleration_vec, inv_mass_vec)
+
+        coord_vec, velocity_vec, acceleration_vec =
+            #velocity_verlet_integration(coord_vec, velocity_vec, acceleration_vec, inv_mass_vec)
+            langevin_integration(coord_vec, velocity_vec, acceleration_vec, inv_mass_vec)
 
         # for dump
         if mod(step_idx, dump_step) == 0
