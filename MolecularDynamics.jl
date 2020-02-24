@@ -144,6 +144,7 @@ function main()
 
     # pre preparation
     frame_vec_for_dump = []
+    vel_vec_for_dump = []
     energy_vec_for_dump = []
     push!(frame_vec_for_dump, coord_vec)
 
@@ -158,6 +159,7 @@ function main()
         if mod(step_idx, dump_step) == 0
             println("step ", step_idx)
             push!(frame_vec_for_dump, coord_vec)
+            push!(vel_vec_for_dump, velocity_vec)
             push!(energy_vec_for_dump, calculate_energy(coord_vec, velocity_vec, mass_vec))
         end
     end
@@ -165,6 +167,16 @@ function main()
     # output part
     open("trajectory.xyz", "w") do os
         for (idx, frame) in enumerate(frame_vec_for_dump)
+            println(os, particle_num)
+            println(os, "step = ", idx * dump_step)
+            for (idx, atom) in enumerate(eachcol(frame))
+                @printf(os, "Particle%d %11.8f %11.8f %11.8f\n", idx, atom[1], atom[2], atom[3])
+            end
+        end
+    end
+
+    open("velocity.xyz", "w") do os
+        for (idx, frame) in enumerate(vel_vec_for_dump)
             println(os, particle_num)
             println(os, "step = ", idx * dump_step)
             for (idx, atom) in enumerate(eachcol(frame))
