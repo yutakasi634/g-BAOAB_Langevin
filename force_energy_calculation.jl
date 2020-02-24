@@ -40,12 +40,13 @@ end
 function calculate_energy(coord_vec::Array{Float64, 2}, velocity_vec::Array{Float64, 2},
                           mass_vec::Array{Float64, 2})::Float64
     total_energy = 0
-    # lennard jones part
-    for i in 1:particle_num - 1
-        for j in i + 1:particle_num
-            distance = norm(coord_vec[:,i] - coord_vec[:,j])
-            println(log_file, "distance between $(i), $(j) ", distance)
-            total_energy += lennard_jones(lennard_jones_eps, lennard_jones_sigma, distance)
+    # inverse power part
+    for first_idx in 1:patch_particle_num - 1
+        for second_idx in first_idx + 1:patch_particle_num
+            dist_vec = coord_vec[:, second_idx] - coord_vec[:, first_idx]
+            distance = norm(dist_vec)
+            total_energy +=
+                inverse_power(inverse_power_coef, core_patch_dist * 2, distance, inverse_power_n)
         end
     end
 
@@ -61,7 +62,8 @@ function calculate_energy(coord_vec::Array{Float64, 2}, velocity_vec::Array{Floa
     # box potential part
     box_side_coord = box_side_length * 0.5
     total_energy +=
-        sum(coord -> excluded_volume(box_eps, box_sigma, box_side_coord - abs(coord)), coord_vec)
+        sum(coord -> excluded_volume(box_eps, box_sigma, box_side_coord - abs(coord)),
+            coord_vec[:, 1:2:particle_num])
     # println(log_file, "total energy ", total_energy)
 
     # physical energy
