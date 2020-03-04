@@ -16,23 +16,19 @@ const kB = 0.0019872 # kcal/ mol K
 # system paraneters
 const lennard_jones_eps = 0.6
 const lennard_jones_sigma = 2.0
-const mass_range             = (80.0   ,120.0)
 const gamma = 0.01
 const temperature = 300.0
-
-# random initial setting parameters
-# const particle_num  = 50
-# const initial_position_range = (-15.0, 15.0)
-# const initial_velocity_range = (-0.1, 0.1)
 
 # meso-scale system parameters
 const patch_particle_num = 6
 const particle_num = patch_particle_num * 2
 const core_patch_dist = 4.0
-const core_patch_bond_coef = 110.0
+const core_patch_bond_coef = 10.0
+const inverse_power_coef = 0.2
+const inverse_power_n = 5
 
 # box parameters
-const box_side_length        = 40.0
+const box_side_length        = 80.0
 const box_eps                = 0.6
 const box_sigma              = 4.0
 
@@ -43,7 +39,9 @@ const rng = MersenneTwister(1234)
 const half_time_step = time_step / 2
 const time_step2 = time_step * time_step
 const one_minus_gammah_over2 = 1 - gamma * time_step * 0.5
-const mass_vec     = rand(Uniform(mass_range...), 1, particle_num)
+const mass_vec     = zeros(1, particle_num)
+mass_vec[1:2:particle_num] .= 100.0
+mass_vec[2:2:particle_num] .= 20.0
 const inv_mass_vec = 1 ./ mass_vec
 const sqrt_inv_mass_vec = sqrt.(inv_mass_vec)
 const noise_coef_vec = sqrt.(2gamma * kB * temperature / time_step .* inv_mass_vec)
@@ -59,8 +57,6 @@ include("integrations.jl")
 
 function main()
     println("main start")
-    # random system initilization
-    # coord_vec    = rand(Uniform(initial_position_range...), 3, particle_num)
 
     # meso-scale system initialization
     coord_vec = zeros(3, particle_num)
@@ -111,8 +107,11 @@ function main()
         for (idx, frame) in enumerate(frame_vec_for_dump)
             println(os, particle_num)
             println(os, "step = ", idx * dump_step)
-            for (idx, atom) in enumerate(eachcol(frame))
-                @printf(os, "Particle%d %11.8f %11.8f %11.8f\n", idx, atom[1], atom[2], atom[3])
+            for atom_idx in 1:2:size(frame, 2)
+                core = frame[:, atom_idx]
+                patch = frame[:, atom_idx + 1]
+                @printf(os, "CORE  %11.8f %11.8f %11.8f\n", core[1], core[2], core[3])
+                @printf(os, "PATCH %11.8f %11.8f %11.8f\n", patch[1], patch[2], patch[3])
             end
         end
     end
