@@ -4,8 +4,8 @@ using Distributions
 using LinearAlgebra
 
 # simulation meta information
-const time_step = 3.0
-const total_step = 100000
+const time_step = 20.0 # confirmed 25.0 can work
+const total_step = 50000
 const dump_step = 10
 const rattle_tolerance = 1.0e-6
 const rattle_max_iter = 500
@@ -16,19 +16,20 @@ const kB = 0.0019872 # kcal/ mol K
 # system paraneters
 const lennard_jones_eps = 0.6
 const lennard_jones_sigma = 2.0
-const gamma = 0.01
 const temperature = 300.0
 
 # meso-scale system parameters
-const patch_particle_num = 30
+const patch_particle_num = 64
 const particle_num = patch_particle_num * 2
-const core_patch_dist = 4.0
+const core_patch_dist = 6.0
 const core_patch_bond_coef = 10.0
-const inverse_power_coef = 0.2
+const inverse_power_coef = 0.6
 const inverse_power_n = 5
+const core_mass = 4900.0
+const patch_mass = 100.0
 
 # box parameters
-const box_side_length        = 80.0
+const box_side_length        = 100.0
 const box_eps                = 0.6
 const box_sigma              = 4.0
 
@@ -38,15 +39,18 @@ const rng = MersenneTwister(1234)
 # pre calculation
 const half_time_step = time_step / 2
 const time_step2 = time_step * time_step
-const one_minus_gammah_over2 = 1 - gamma * time_step * 0.5
 const mass_vec     = zeros(1, particle_num)
-mass_vec[1:2:particle_num] .= 100.0
-mass_vec[2:2:particle_num] .= 20.0
+mass_vec[1:2:particle_num] .= core_mass # initialize core mass
+mass_vec[2:2:particle_num] .= patch_mass # initialize patch mass
 const inv_mass_vec = 1 ./ mass_vec
 const sqrt_inv_mass_vec = sqrt.(inv_mass_vec)
-const noise_coef_vec = sqrt.(2gamma * kB * temperature / time_step .* inv_mass_vec)
-const baoab_c_1 = ℯ^(-gamma * time_step)
-const baoab_c_3 = sqrt(kB * temperature * (1 - baoab_c_1^2))
+const gamma_vec = zeros(1, particle_num)
+gamma_vec[1:2:particle_num] .= 168.7 * 0.005 / core_mass
+gamma_vec[2:2:particle_num] .= 168.7 * 0.005 / patch_mass
+const one_minus_gammah_over2_vec = 1 .- gamma_vec * time_step * 0.5
+const noise_coef_vec = sqrt.(2 * kB * temperature / time_step * gamma_vec .* inv_mass_vec)
+const baoab_c_1_vec = ℯ.^(-gamma_vec * time_step)
+const baoab_c_3_vec = sqrt.(kB * temperature * (1 .- baoab_c_1_vec.^2))
 const core_patch_dist2 = core_patch_dist * core_patch_dist
 
 log_file = open("logfile.log", "w")
