@@ -90,16 +90,16 @@ function calculate_force(coord_vec::Array{Float64, 2})::Array{Float64, 2}
     #println(log_file, "inverse power force ", res_force_vec)
 
     # harmonic bond part
-    for patch_particle_idx in 1:patch_particle_num
-        core_idx = patch_particle_idx * 2 - 1
-        patch_idx = core_idx + 1
-        dist_vec = coord_vec[:, patch_idx] - coord_vec[:, core_idx]
-        distance = norm(dist_vec)
-        harmonic_bond_force_vec =
-            dev_harmonic(core_patch_bond_coef, core_patch_dist, distance) * dist_vec / distance
-        res_force_vec[:, core_idx]  += harmonic_bond_force_vec
-        res_force_vec[:, patch_idx] -= harmonic_bond_force_vec
-    end
+    # for patch_particle_idx in 1:patch_particle_num
+    #     core_idx = patch_particle_idx * 2 - 1
+    #     patch_idx = core_idx + 1
+    #     dist_vec = coord_vec[:, patch_idx] - coord_vec[:, core_idx]
+    #     distance = norm(dist_vec)
+    #     harmonic_bond_force_vec =
+    #         dev_harmonic(core_patch_bond_coef, core_patch_dist, distance) * dist_vec / distance
+    #     res_force_vec[:, core_idx]  += harmonic_bond_force_vec
+    #     res_force_vec[:, patch_idx] -= harmonic_bond_force_vec
+    # end
 
     # box potential part
     box_side_coord = box_side_length * 0.5

@@ -5,8 +5,10 @@ using LinearAlgebra
 
 # simulation meta information
 const time_step = 0.8
-const total_step = 10000
-const dump_step = 10
+const total_step = 5000
+const dump_step = 1
+const rattle_tolerance = 1.0e-6
+const rattle_max_iter = 500
 
 # physical constants
 const kB = 0.0019872 # kcal/ mol K
@@ -18,7 +20,7 @@ const gamma = 0.01
 const temperature = 300.0
 
 # meso-scale system parameters
-const patch_particle_num = 20
+const patch_particle_num = 6
 const particle_num = patch_particle_num * 2
 const core_patch_dist = 4.0
 const core_patch_bond_coef = 10.0
@@ -34,6 +36,7 @@ const box_sigma              = 4.0
 const rng = MersenneTwister(1234)
 
 # pre calculation
+const half_time_step = time_step / 2
 const time_step2 = time_step * time_step
 const one_minus_gammah_over2 = 1 - gamma * time_step * 0.5
 const mass_vec     = zeros(1, particle_num)
@@ -44,10 +47,12 @@ const sqrt_inv_mass_vec = sqrt.(inv_mass_vec)
 const noise_coef_vec = sqrt.(2gamma * kB * temperature / time_step .* inv_mass_vec)
 const baoab_c_1 = ℯ^(-gamma * time_step)
 const baoab_c_3 = sqrt(kB * temperature * (1 - baoab_c_1^2))
+const core_patch_dist2 = core_patch_dist * core_patch_dist
 
 log_file = open("logfile.log", "w")
 
 include("force_energy_calculation.jl")
+include("constraints.jl")
 include("integrations.jl")
 
 function main()
@@ -85,7 +90,8 @@ function main()
         coord_vec, velocity_vec, acceleration_vec =
             #velocity_verlet_integration(coord_vec, velocity_vec, acceleration_vec)
             #langevin_integration(coord_vec, velocity_vec, acceleration_vec)
-            BAOAB_langevin_integration(coord_vec, velocity_vec, acceleration_vec)
+            # BAOAB_langevin_integration(coord_vec, velocity_vec, acceleration_vec)
+            g_BAOAB_langevin_integration(coord_vec, velocity_vec, acceleration_vec)
 
         # for dump
         if mod(step_idx, dump_step) == 0
