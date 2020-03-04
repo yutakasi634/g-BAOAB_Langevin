@@ -4,9 +4,9 @@ using Distributions
 using LinearAlgebra
 
 # simulation meta information
-const time_step = 0.8
-const total_step = 5000
-const dump_step = 1
+const time_step = 3.0
+const total_step = 100000
+const dump_step = 10
 const rattle_tolerance = 1.0e-6
 const rattle_max_iter = 500
 
@@ -20,7 +20,7 @@ const gamma = 0.01
 const temperature = 300.0
 
 # meso-scale system parameters
-const patch_particle_num = 6
+const patch_particle_num = 30
 const particle_num = patch_particle_num * 2
 const core_patch_dist = 4.0
 const core_patch_bond_coef = 10.0
