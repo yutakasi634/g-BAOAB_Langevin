@@ -53,17 +53,23 @@ function calculate_energy(coord_vec::Array{Float64, 2}, velocity_vec::Array{Floa
     # println(log_file, "lennard jones energy ", total_energy)
 
     # harmonic bond part
-    for patch_particle_idx in 1:patch_particle_num
-        dist_vec = coord_vec[:, patch_particle_idx * 2 - 1] - coord_vec[:, patch_particle_idx * 2]
-        distance = norm(dist_vec)
-        total_energy += harmonic(core_patch_bond_coef, core_patch_dist, distance)
-    end
+    # for patch_particle_idx in 1:patch_particle_num
+    #     dist_vec = coord_vec[:, patch_particle_idx * 2 - 1] - coord_vec[:, patch_particle_idx * 2]
+    #     distance = norm(dist_vec)
+    #     total_energy += harmonic(core_patch_bond_coef, core_patch_dist, distance)
+    # end
 
     # box potential part
     box_side_coord = box_side_length * 0.5
-    total_energy +=
-        sum(coord -> excluded_volume(box_eps, box_sigma, box_side_coord - abs(coord)),
-            coord_vec[:, 1:2:particle_num])
+    total_energy += sum(coord_vec[:, 1:2:particle_num]) do coord
+        surplus_dist = abs(coord) - box_side_length
+        if surplus_dist > 0.0
+            harmonic(1.0, 0.0, surplus_dist)
+        else
+            0.0
+        end
+    end
+
     # println(log_file, "total energy ", total_energy)
 
     # physical energy
@@ -104,11 +110,17 @@ function calculate_force(coord_vec::Array{Float64, 2})::Array{Float64, 2}
     # box potential part
     box_side_coord = box_side_length * 0.5
     box_force_vec = map(coord_vec[:, 1:2:particle_num]) do coord
-        dev_excluded_volume(box_eps, box_sigma, box_side_coord - abs(coord)) * sign(coord)
+        surplus_dist = abs(coord) - box_side_coord
+        if surplus_dist > 0.0
+            -dev_harmonic(1.0, 0.0, surplus_dist) * sign(coord)
+            # dev_excluded_volume(box_eps, box_sigma, box_side_coord - abs(coord)) * sign(coord)
+        else
+            0.0
+        end
     end
+
     #println(log_file, "box force ", box_force_vec)
     res_force_vec[:,1:2:particle_num] += box_force_vec
-
     #println(log_file, "total force ", res_force_vec)
     res_force_vec
 end
